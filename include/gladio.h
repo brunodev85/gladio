@@ -4,7 +4,7 @@
 #define DEBUG_MODE_SHADER_INFO (1<<1)
 #define DEBUG_MODE_TEXTURE_FORMAT (1<<2)
 #define DEBUG_MODE_HANDLE_REQUEST (1<<3)
-#define DEBUG_MODE (0) // FIXME 0=DISABLE or (FIRST | SECOND)
+#define DEBUG_MODE (DEBUG_MODE_SHADER_INFO) // FIXME 0=DISABLE or (FIRST | SECOND)
 #define IS_DEBUG_ENABLED(type) ((DEBUG_MODE & type) != 0)
 
 #define GLX_EXT_MAJOR_OPCODE -106
@@ -248,6 +248,8 @@ static inline int sizeofGLType(GLenum type) {
         case GL_INT:
         case GL_UNSIGNED_INT:
             return sizeof(GLint);
+        case GL_HALF_FLOAT:
+            return sizeof(GLhalf);
         case GL_FLOAT:
             return sizeof(GLfloat);
         case GL_DOUBLE:

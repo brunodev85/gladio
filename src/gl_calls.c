@@ -1398,11 +1398,17 @@ void glDisableClientState(GLenum array) {
 }
 
 void glDisableClientStateIndexedEXT(GLenum array, GLuint index) {
-    println(MSG_DEBUG_UNIMPLEMENTED_GLCALL, "glDisableClientStateIndexedEXT");
+    if (array != GL_TEXTURE_COORD_ARRAY) return;
+    GL_CALL_LOCK();
+    int oldIndex = currentGLContext->clientState->activeTexCoord;
+    if (oldIndex != index) glClientActiveTexture(GL_TEXTURE0 + index);
+    glDisableClientState(array);
+    if (oldIndex != index) glClientActiveTexture(GL_TEXTURE0 + oldIndex);
+    GL_CALL_UNLOCK();
 }
 
 void glDisableClientStateiEXT(GLenum array, GLuint index) {
-    println(MSG_DEBUG_UNIMPLEMENTED_GLCALL, "glDisableClientStateiEXT");
+    glDisableClientStateIndexedEXT(array, index);
 }
 
 void glDisableVertexArrayAttribEXT(GLuint vaobj, GLuint index) {
@@ -1661,11 +1667,17 @@ void glEnableClientState(GLenum array) {
 }
 
 void glEnableClientStateIndexedEXT(GLenum array, GLuint index) {
-    println(MSG_DEBUG_UNIMPLEMENTED_GLCALL, "glEnableClientStateIndexedEXT");
+    if (array != GL_TEXTURE_COORD_ARRAY) return;
+    GL_CALL_LOCK();
+    int oldIndex = currentGLContext->clientState->activeTexCoord;
+    if (oldIndex != index) glClientActiveTexture(GL_TEXTURE0 + index);
+    glEnableClientState(array);
+    if (oldIndex != index) glClientActiveTexture(GL_TEXTURE0 + oldIndex);
+    GL_CALL_UNLOCK();
 }
 
 void glEnableClientStateiEXT(GLenum array, GLuint index) {
-    println(MSG_DEBUG_UNIMPLEMENTED_GLCALL, "glEnableClientStateiEXT");
+    glEnableClientStateIndexedEXT(array, index);
 }
 
 void glEnableVertexArrayAttribEXT(GLuint vaobj, GLuint index) {
@@ -2820,7 +2832,14 @@ void glGetQueryivEXT(GLenum target, GLenum pname, GLint* params) {
 }
 
 void glGetRenderbufferParameteriv(GLenum target, GLenum pname, GLint* params) {
-    println(MSG_DEBUG_UNIMPLEMENTED_GLCALL, "glGetRenderbufferParameteriv");
+    GL_CALL_LOCK();
+    ArrayBuffer_rewind(&outputBuffer);
+    ArrayBuffer_putInt(&outputBuffer, target);
+    ArrayBuffer_putInt(&outputBuffer, pname);
+    GL_SEND_CHECKED(REQUEST_CODE_GL_GET_RENDERBUFFER_PARAMETERIV, outputBuffer.buffer, outputBuffer.size);
+    GL_RECV_CHECKED();
+    *params = ArrayBuffer_getInt(&inputBuffer);
+    GL_CALL_UNLOCK();
 }
 
 void glGetRenderbufferParameterivEXT(GLenum target, GLenum pname, GLint* params) {
@@ -4080,9 +4099,12 @@ void glMultiTexCoord4svARB(GLenum target, const GLshort* v) {
 }
 
 void glMultiTexCoordPointerEXT(GLenum texunit, GLint size, GLenum type, GLsizei stride, const void* pointer) {
-    GL_DSA_SAVE_ACTIVE_TEXTURE(texunit);
+    GL_CALL_LOCK();
+    GLenum oldTexunit = GL_TEXTURE0 + currentGLContext->clientState->activeTexCoord;
+    if (oldTexunit != texunit) glClientActiveTexture(texunit);
     glTexCoordPointer(size, type, stride, pointer);
-    GL_DSA_RESTORE_ACTIVE_TEXTURE();
+    if (oldTexunit != texunit) glClientActiveTexture(oldTexunit);
+    GL_CALL_UNLOCK();
 }
 
 void glMultiTexEnvfEXT(GLenum texunit, GLenum target, GLenum pname, GLfloat param) {
@@ -4272,6 +4294,12 @@ void glNamedProgramLocalParameter4fEXT(GLuint program, GLenum target, GLuint ind
 void glNamedProgramLocalParameter4fvEXT(GLuint program, GLenum target, GLuint index, const GLfloat* params) {
     GL_DSA_SAVE_BOUND_ARB_PROGRAM(program);
     glProgramLocalParameter4fvARB(target, index, params);
+    GL_DSA_RESTORE_BOUND_ARB_PROGRAM();
+}
+
+void glNamedProgramLocalParameters4fvEXT(GLuint program, GLenum target, GLuint index, GLsizei count, const GLfloat* params) {
+    GL_DSA_SAVE_BOUND_ARB_PROGRAM(program);
+    glProgramLocalParameters4fvEXT(target, index, count, params);
     GL_DSA_RESTORE_BOUND_ARB_PROGRAM();
 }
 
@@ -4628,6 +4656,10 @@ void glProgramEnvParameter4fvARB(GLenum target, GLuint index, const GLfloat* par
     glProgramEnvParameter4fARB(target, index, params[0], params[1], params[2], params[3]);
 }
 
+void glProgramEnvParameters4fvEXT(GLenum target, GLuint index, GLsizei count, const GLfloat* params) {
+    for (int i = 0; i < count; i++) glProgramEnvParameter4fvARB(target, index + i, params + i * 4);
+}
+
 void glProgramLocalParameter4dARB(GLenum target, GLuint index, GLdouble x, GLdouble y, GLdouble z, GLdouble w) {
     glProgramLocalParameter4fARB(target, index, (GLfloat)x, (GLfloat)y, (GLfloat)z, (GLfloat)w);
 }
@@ -4651,6 +4683,10 @@ void glProgramLocalParameter4fARB(GLenum target, GLuint index, GLfloat x, GLfloa
 
 void glProgramLocalParameter4fvARB(GLenum target, GLuint index, const GLfloat* params) {
     glProgramLocalParameter4fARB(target, index, params[0], params[1], params[2], params[3]);
+}
+
+void glProgramLocalParameters4fvEXT(GLenum target, GLuint index, GLsizei count, const GLfloat* params) {
+    for (int i = 0; i < count; i++) glProgramLocalParameter4fvARB(target, index + i, params + i * 4);
 }
 
 void glProgramStringARB(GLenum target, GLenum format, GLsizei len, const void* string) {
