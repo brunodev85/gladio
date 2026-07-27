@@ -226,10 +226,13 @@ void IntArray_sort(IntArray* intArray) {
     if (intArray) qsort(intArray->values, intArray->size, sizeof(int), intCompare);
 }
 
+int IntArray_indexOf(IntArray* intArray, int value) {
+    for (int i = 0; i < intArray->size; i++) if (intArray->values[i] == value) return i;
+    return -1;
+}
+
 int ArrayList_indexOf(ArrayList* arrayList, void* element) {
-    for (int i = 0; i < arrayList->size; i++) {
-        if (arrayList->elements[i] == element) return i;
-    }
+    for (int i = 0; i < arrayList->size; i++) if (arrayList->elements[i] == element) return i;
     return -1;
 }
 
