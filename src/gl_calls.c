@@ -238,6 +238,7 @@ void glBindMultiTextureEXT(GLenum texunit, GLenum target, GLuint texture) {
 
 void glBindProgramARB(GLenum target, GLuint program) {
     GL_CALL_LOCK();
+    currentGLContext->clientState->arbProgram[indexOfGLTarget(target)] = program;
     ArrayBuffer_rewind(&outputBuffer);
     ArrayBuffer_putInt(&outputBuffer, target);
     ArrayBuffer_putInt(&outputBuffer, program);
@@ -1265,6 +1266,14 @@ void glDeleteProgram(GLuint program) {
 
 void glDeleteProgramsARB(GLsizei n, const GLuint* programs) {
     GL_CALL_LOCK();
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < MAX_ARB_PROGRAM_TARGETS; j++) {
+            if (programs[i] == currentGLContext->clientState->arbProgram[j]) {
+                currentGLContext->clientState->arbProgram[j] = 0;
+                break;
+            }
+        }
+    }
     ArrayBuffer_rewind(&outputBuffer);
     ArrayBuffer_putInt(&outputBuffer, n);
     ArrayBuffer_putBytes(&outputBuffer, programs, n * sizeof(GLuint));
@@ -1392,7 +1401,11 @@ void glDisable(GLenum cap) {
 
 void glDisableClientState(GLenum array) {
     GL_CALL_LOCK();
-    GLVertexArrayObject_setAttribState(currentGLContext->clientState, array, VERTEX_ATTRIB_DISABLED, false);
+    GLClientState* clientState = currentGLContext->clientState;
+    if (array == GL_TEXTURE_COORD_ARRAY) {
+        GLVertexArrayObject_setAttribState(clientState, TEXCOORD_ARRAY_INDEX + clientState->activeTexCoord, VERTEX_ATTRIB_DISABLED, false);
+    }
+    else GLVertexArrayObject_setAttribState(clientState, array, VERTEX_ATTRIB_DISABLED, false);
     gl_send(currentGLContext->serverRing, REQUEST_CODE_GL_DISABLE_CLIENT_STATE, &array, sizeof(GLenum));
     GL_CALL_UNLOCK();
 }
@@ -1421,7 +1434,9 @@ void glDisableVertexArrayEXT(GLuint vaobj, GLenum array) {
 
 void glDisableVertexAttribArray(GLuint index) {
     GL_CALL_LOCK();
-    GLVertexArrayObject_setAttribState(currentGLContext->clientState, index, VERTEX_ATTRIB_DISABLED, false);
+    GLClientState* clientState = currentGLContext->clientState;
+    if (clientState->arbProgram[0]) index += GENERIC_VERTEX_ARRAY_INDEX;
+    GLVertexArrayObject_setAttribState(clientState, index, VERTEX_ATTRIB_DISABLED, false);
     gl_send(currentGLContext->serverRing, REQUEST_CODE_GL_DISABLE_VERTEX_ATTRIB_ARRAY, &index, sizeof(GLuint));
     GL_CALL_UNLOCK();
 }
@@ -1661,7 +1676,13 @@ void glEnable(GLenum cap) {
 
 void glEnableClientState(GLenum array) {
     GL_CALL_LOCK();
-    GLVertexArrayObject_setAttribState(currentGLContext->clientState, array, VERTEX_ATTRIB_LEGACY_ENABLED, false);
+    GLClientState* clientState = currentGLContext->clientState;
+    if (!GLBuffer_getBound(GL_ARRAY_BUFFER) || !(clientState->program || clientState->arbProgram[0])) {
+        if (array == GL_TEXTURE_COORD_ARRAY) {
+            GLVertexArrayObject_setAttribState(clientState, TEXCOORD_ARRAY_INDEX + clientState->activeTexCoord, VERTEX_ATTRIB_LEGACY_ENABLED, false);
+        }
+        else GLVertexArrayObject_setAttribState(clientState, array, VERTEX_ATTRIB_LEGACY_ENABLED, false);        
+    }
     gl_send(currentGLContext->serverRing, REQUEST_CODE_GL_ENABLE_CLIENT_STATE, &array, sizeof(GLenum));
     GL_CALL_UNLOCK();    
 }
@@ -1690,6 +1711,7 @@ void glEnableVertexArrayEXT(GLuint vaobj, GLenum array) {
 
 void glEnableVertexAttribArray(GLuint index) {
     GL_CALL_LOCK();
+    if (currentGLContext->clientState->arbProgram[0]) index += GENERIC_VERTEX_ARRAY_INDEX;
     gl_send(currentGLContext->serverRing, REQUEST_CODE_GL_ENABLE_VERTEX_ATTRIB_ARRAY, &index, sizeof(GLuint));
     GL_CALL_UNLOCK();
 }
@@ -7233,6 +7255,7 @@ void glVertexAttribPointer(GLuint index, GLint size, GLenum type, GLboolean norm
     GLClientState* clientState = currentGLContext->clientState;
     GLBuffer* arrayBuffer = GLBuffer_getBound(GL_ARRAY_BUFFER);
     if (index < VERTEX_ATTRIB_COUNT) {
+        if (clientState->arbProgram[0]) index += GENERIC_VERTEX_ARRAY_INDEX;
         if (!arrayBuffer || size == GL_BGRA) {
             clientState->vao->attribs[index].stride = stride > 0 ? stride : MIN(4, size) * sizeofGLType(type);
             clientState->vao->attribs[index].pointer = arrayBuffer ? arrayBuffer->mappedData : pointer;

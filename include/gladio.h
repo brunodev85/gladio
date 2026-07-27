@@ -4,7 +4,7 @@
 #define DEBUG_MODE_SHADER_INFO (1<<1)
 #define DEBUG_MODE_TEXTURE_FORMAT (1<<2)
 #define DEBUG_MODE_HANDLE_REQUEST (1<<3)
-#define DEBUG_MODE (DEBUG_MODE_SHADER_INFO) // FIXME 0=DISABLE or (FIRST | SECOND)
+#define DEBUG_MODE (0) // FIXME 0=DISABLE or (FIRST | SECOND)
 #define IS_DEBUG_ENABLED(type) ((DEBUG_MODE & type) != 0)
 
 #define GLX_EXT_MAJOR_OPCODE -106
@@ -31,7 +31,9 @@
 #define MAX_BUFFER_TARGETS 6
 #define MAX_ARB_PROGRAM_TARGETS 2
 #define MAX_FB_COLOR_ATTACHMENTS 8
-#define VERTEX_ATTRIB_COUNT (3 + MAX_TEXCOORDS)
+#define MIN_VERTEX_ATTRIBS 3
+#define MAX_GENERIC_VERTEX_ATTRIBS 8
+#define VERTEX_ATTRIB_COUNT (MIN_VERTEX_ATTRIBS + MAX_TEXCOORDS + MAX_GENERIC_VERTEX_ATTRIBS)
 
 #define GL_SEND_CHECKED(requestCode, outputBuffer, bufferSize, ...) \
     do { \
@@ -90,6 +92,7 @@ typedef struct GLClientState GLClientState;
 
 typedef struct GLRenderer GLRenderer;
 typedef struct GLContext GLContext;
+typedef struct ShaderMaterial ShaderMaterial;
 
 typedef struct JMethods {
     JavaVM* jvm;

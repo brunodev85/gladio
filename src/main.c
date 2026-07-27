@@ -70,10 +70,8 @@ void writeUnboundVertexArrays(GLint first, GLsizei count, const void* indices, G
         int indexCount = 0;
         for (int i = 0, j, index; i < clientState->vao->maxEnabledAttribs; i++) {
             if (clientState->vao->attribs[i].state && clientState->vao->attribs[i].pointer) {
-                bool legacyEnabledWithProgram = clientState->vao->attribs[i].state == VERTEX_ATTRIB_LEGACY_ENABLED && clientState->program > 0;
                 short stride = clientState->vao->attribs[i].stride;
-                
-                if (clientState->vao->attribs[i].state == VERTEX_ATTRIB_ENABLED || legacyEnabledWithProgram) {
+                if (clientState->vao->attribs[i].state == VERTEX_ATTRIB_ENABLED || GLClientState_isLegacyEnabledWithProgram(clientState, i)) {
                     if (indexCount == 0) {
                         GLuint range[2];
                         getRangeIndices(indices, count, indexType, basevertex, range);
