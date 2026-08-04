@@ -1436,7 +1436,7 @@ void glDisableVertexAttribArray(GLuint index) {
     GL_CALL_LOCK();
     GLClientState* clientState = currentGLContext->clientState;
     if (clientState->arbProgram[0]) index += GENERIC_VERTEX_ARRAY_INDEX;
-    GLVertexArrayObject_setAttribState(clientState, index, VERTEX_ATTRIB_DISABLED, false);
+    if (index < VERTEX_ATTRIB_COUNT) GLVertexArrayObject_setAttribState(clientState, index, VERTEX_ATTRIB_DISABLED, false);
     gl_send(currentGLContext->serverRing, REQUEST_CODE_GL_DISABLE_VERTEX_ATTRIB_ARRAY, &index, sizeof(GLuint));
     GL_CALL_UNLOCK();
 }
