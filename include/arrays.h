@@ -96,7 +96,6 @@ typedef struct SparseArray {
 } SparseArray;
 
 extern int SparseArray_indexOfKey(SparseArray* sparseArray, int key);
-extern int SparseArray_indexOfValue(SparseArray* sparseArray, void* value);
 extern void SparseArray_put(SparseArray* sparseArray, int key, void* value);
 extern void* SparseArray_get(SparseArray* sparseArray, int key);
 extern void* SparseArray_removeAt(SparseArray* sparseArray, int index);
