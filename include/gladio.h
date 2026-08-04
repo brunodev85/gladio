@@ -12,6 +12,7 @@
 #define CLIENT_RING_BUFFER_SIZE 33554432
 #define THREAD_POOL_NUM_THREADS 4
 #define PIXEL_READ_CACHE_SKIP_FRAMES 3
+#define SKIP_GL_FINISH 1
 #define X11_SERVER_PATH "/data/data/com.winlator/files/rootfs/tmp/.X11-unix/X0"
 
 #define GL_STRING_VERSION "3.3"
@@ -25,15 +26,15 @@
 #endif
 
 #define MAX_LIGHTS 4
-#define MAX_TEXCOORDS 8
+#define MAX_TEXTURES 8
 #define MAX_TEXTURE_TARGETS 4
 #define MAX_FRAMEBUFFER_TARGETS 3
 #define MAX_BUFFER_TARGETS 6
 #define MAX_ARB_PROGRAM_TARGETS 2
 #define MAX_FB_COLOR_ATTACHMENTS 8
 #define MIN_VERTEX_ATTRIBS 3
-#define MAX_GENERIC_VERTEX_ATTRIBS 8
-#define VERTEX_ATTRIB_COUNT (MIN_VERTEX_ATTRIBS + MAX_TEXCOORDS + MAX_GENERIC_VERTEX_ATTRIBS)
+#define MAX_GENERIC_VERTEX_ATTRIBS 16
+#define VERTEX_ATTRIB_COUNT (MIN_VERTEX_ATTRIBS + MAX_TEXTURES + MAX_GENERIC_VERTEX_ATTRIBS)
 
 #define GL_SEND_CHECKED(requestCode, outputBuffer, bufferSize, ...) \
     do { \
@@ -270,6 +271,7 @@ static inline uint8_t indexOfGLTarget(GLenum target) {
         case GL_VERTEX_PROGRAM_TWO_SIDE:
         case GL_ARRAY_BUFFER:
         case GL_TEXTURE_1D:
+        case GL_TEXTURE_RECTANGLE:
             return 0;
         case GL_TEXTURE_3D:
         case GL_DRAW_FRAMEBUFFER:
