@@ -120,6 +120,24 @@ extern void SparseIntArray_removeAt(SparseIntArray* sparseArray, int index);
 extern void SparseIntArray_remove(SparseIntArray* sparseArray, int key);
 extern void SparseIntArray_free(SparseIntArray* sparseArray);
 
+typedef struct SparseArray64_Entry {
+    int64_t key;
+    void* value;
+} SparseArray64_Entry;
+
+typedef struct SparseArray64 {
+    int size;
+    int capacity;
+    SparseArray64_Entry* entries;
+} SparseArray64;
+
+extern int SparseArray64_indexOfKey(SparseArray64* sparseArray, int64_t key);
+extern void SparseArray64_put(SparseArray64* sparseArray, int64_t key, void* value);
+extern void* SparseArray64_get(SparseArray64* sparseArray, int64_t key);
+extern void* SparseArray64_removeAt(SparseArray64* sparseArray, int index);
+extern void* SparseArray64_remove(SparseArray64* sparseArray, int64_t key);
+extern void SparseArray64_free(SparseArray64* sparseArray, bool freeValues);
+
 typedef struct ArrayDeque {
     int head;
     int tail;
@@ -151,4 +169,7 @@ extern void ArrayDeque_free(ArrayDeque* arrayDeque, bool freeValues);
 
 #define ARRAYS_FILL(array, length, value) for (int x = 0; x < length; x++) array[x] = value
 
+#define ARRAYDEQUE_FOREACH(arr, item) \
+    for (int i = arr->head, keep = 1; keep && i != arr->tail; keep = !keep, i = (i + 1) & (arr->size - 1)) \
+        for (item = arr->elements[i]; keep; keep = !keep)
 #endif
