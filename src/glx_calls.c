@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+#include <dlfcn.h>
 #include "gladio.h"
 #include "gl_context.h"
 
@@ -269,7 +271,16 @@ __GLXextFuncPtr glXGetProcAddressARB(const GLubyte* procName) {
     else if (strcmp(name, "glXUseXFont") == 0) return (__GLXextFuncPtr)glXUseXFont;
     else if (strcmp(name, "glXWaitGL") == 0) return (__GLXextFuncPtr)glXWaitGL;
     else if (strcmp(name, "glXWaitX") == 0) return (__GLXextFuncPtr)glXWaitX;
-    return NULL;
+
+    // GL entry points (core and extensions) are exported by this library itself
+    if (strncmp(name, "gl", 2) != 0) return NULL;
+    static void* self = NULL;
+    if (!self) {
+        Dl_info info;
+        if (dladdr((void*)glXGetProcAddressARB, &info) && info.dli_fname) self = dlopen(info.dli_fname, RTLD_NOW | RTLD_NOLOAD);
+        if (!self) self = RTLD_DEFAULT;
+    }
+    return (__GLXextFuncPtr)dlsym(self, name);
 }
 
 __GLXextFuncPtr glXGetProcAddress(const GLubyte* procName) {

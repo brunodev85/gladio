@@ -5,6 +5,16 @@
 
 pthread_mutex_t gl_call_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+// The server fills pixel pack buffers (glReadPixels into a buffer object) in the shared mapping
+// while it works through the request queue. Before the client reads one, wait until the server
+// has handled every earlier request. Called with the GL call lock held.
+static void waitForPixelPackBuffer(GLenum target) {
+    if (target != GL_PIXEL_PACK_BUFFER) return;
+    if (gl_send(currentGLContext->serverRing, REQUEST_CODE_GL_FINISH, NULL, 0)) {
+        gl_recv(currentGLContext->clientRing, NULL, &inputBuffer);
+    }
+}
+
 void glAccum(GLenum op, GLfloat value) {
     GL_CALL_LOCK();
     ArrayBuffer_rewind(&outputBuffer);
@@ -2370,7 +2380,10 @@ void glGetBufferPointervARB(GLenum target, GLenum pname, void** params) {
 void glGetBufferSubData(GLenum target, GLintptr offset, GLsizeiptr size, void* data) {
     GL_CALL_LOCK();
     GLBuffer* buffer = GLBuffer_getBound(target);
-    if (buffer) memcpy(data, buffer->mappedData + offset, size);
+    if (buffer && buffer->mappedData) {
+        waitForPixelPackBuffer(target);
+        memcpy(data, buffer->mappedData + offset, size);
+    }
     GL_CALL_UNLOCK();
 }
 
@@ -2419,9 +2432,13 @@ void glGetDoublei_vEXT(GLenum pname, GLuint index, GLdouble* params) {
 }
 
 void glGetDoublev(GLenum pname, GLdouble* data) {
-    GLfloat dataf;
-    glGetFloatv(pname, &dataf);
-    *data = dataf;
+    GL_CALL_LOCK();
+    GL_SEND_CHECKED(REQUEST_CODE_GL_GET_FLOATV, &pname, sizeof(GLenum));
+    GL_RECV_CHECKED();
+    const GLfloat* values = (const GLfloat*)inputBuffer.buffer;
+    int count = inputBuffer.size / (int)sizeof(GLfloat);
+    for (int i = 0; i < count; i++) data[i] = values[i];
+    GL_CALL_UNLOCK();
 }
 
 GLenum glGetError() {
@@ -3445,7 +3462,16 @@ void glLightModelf(GLenum pname, GLfloat param) {
 }
 
 void glLightModelfv(GLenum pname, const GLfloat* params) {
-    println(MSG_DEBUG_UNIMPLEMENTED_GLCALL, "glLightModelfv");
+    // always 4 values on the wire, only GL_LIGHT_MODEL_AMBIENT uses all of them
+    GLfloat values[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    memcpy(values, params, (pname == GL_LIGHT_MODEL_AMBIENT ? 4 : 1) * sizeof(GLfloat));
+
+    GL_CALL_LOCK();
+    ArrayBuffer_rewind(&outputBuffer);
+    ArrayBuffer_putInt(&outputBuffer, pname);
+    ArrayBuffer_putBytes(&outputBuffer, values, sizeof(values));
+    gl_send(currentGLContext->serverRing, REQUEST_CODE_GL_LIGHT_MODELFV, outputBuffer.buffer, outputBuffer.size);
+    GL_CALL_UNLOCK();
 }
 
 void glLightModeli(GLenum pname, GLint param) {
@@ -3458,7 +3484,13 @@ void glLightModeli(GLenum pname, GLint param) {
 }
 
 void glLightModeliv(GLenum pname, const GLint* params) {
-    println(MSG_DEBUG_UNIMPLEMENTED_GLCALL, "glLightModeliv");
+    GLfloat values[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    if (pname == GL_LIGHT_MODEL_AMBIENT) {
+        // integer colors map INT32_MAX to 1.0, like the other color parameters
+        for (int i = 0; i < 4; i++) values[i] = (GLfloat)((double)params[i] / (double)INT32_MAX);
+    }
+    else values[0] = (GLfloat)params[0];
+    glLightModelfv(pname, values);
 }
 
 void glLightf(GLenum light, GLenum pname, GLfloat param) {
@@ -3607,6 +3639,7 @@ void* glMapBufferRange(GLenum target, GLintptr offset, GLsizeiptr length, GLbitf
     buffer->mapLength = length;
     buffer->mapped = true;
 
+    waitForPixelPackBuffer(target);
     void* result = buffer->mappedData + offset;
     GL_CALL_UNLOCK();
     return result;
